@@ -609,8 +609,9 @@
           barClass = '';
           statusHtml = '';
         }
+        const showBudgetBtn = name.toLowerCase() === 'courses';
         const budgetBtnLabel = budget ? `Budget : ${fmt(budget)}` : '+ Définir un budget';
-        const inputHtml = isOpen ? `
+        const inputHtml = !showBudgetBtn ? '' : isOpen ? `
           <div class="cat-budget-input-row">
             <input class="cat-budget-input" type="number" id="budgetInput_${name.replace(/\s/g,'_')}" value="${budget||''}" placeholder="Ex: 200" min="0" step="1">
             <button class="cat-budget-save" onclick="saveCategoryBudget('${name.replace(/'/g,"\\'")}')">OK</button>
