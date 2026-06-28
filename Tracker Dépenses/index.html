@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Mes Dépenses</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1e3af5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Dépenses">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --blue: #1e3af5;
+      --blue-light: #eef0ff;
+      --red: #ef4444;
+      --red-light: #fef2f2;
+      --green: #22c55e;
+      --green-light: #f0fdf4;
+      --orange: #f97316;
+      --orange-light: #fff7ed;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-700: #374151;
+      --gray-900: #111827;
+      --radius: 16px;
+      --radius-sm: 10px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+      --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+      background: var(--gray-50);
+      color: var(--gray-900);
+      min-height: 100vh;
+      max-width: 430px;
+      margin: 0 auto;
+    }
+
+    /* HEADER */
+    .header {
+      background: white;
+      padding: 20px 20px 0;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-bottom: 1px solid var(--gray-100);
+    }
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .header-title { font-size: 22px; font-weight: 700; color: var(--gray-900); }
+    .header-date { font-size: 13px; color: var(--gray-500); margin-top: 2px; }
+    .budget-toggle-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--gray-100);
+      border: none;
+      border-radius: 20px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--gray-500);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .budget-toggle-btn.active { background: var(--blue-light); color: var(--blue); }
+    .toggle-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--gray-400); transition: background 0.2s;
+    }
+    .budget-toggle-btn.active .toggle-dot { background: var(--blue); }
+
+    /* BUDGET BAR */
+    .budget-bar-section {
+      display: none;
+      padding: 12px 0 16px;
+      border-top: 1px solid var(--gray-100);
+    }
+    .budget-bar-section.visible { display: block; }
+    .budget-bar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .budget-bar-label { font-size: 12px; color: var(--gray-500); font-weight: 500; }
+    .budget-amount-input {
+      font-size: 13px; font-weight: 700; color: var(--blue);
+      border: none; background: none; text-align: right;
+      width: 100px; outline: none;
+    }
+    .budget-track { background: var(--gray-100); border-radius: 99px; height: 8px; overflow: hidden; }
+    .budget-fill { height: 100%; border-radius: 99px; background: var(--blue); transition: width 0.4s, background 0.3s; }
+    .budget-fill.warning { background: var(--orange); }
+    .budget-fill.danger { background: var(--red); }
+    .budget-sub { display: flex; justify-content: space-between; margin-top: 6px; font-size: 11px; color: var(--gray-400); }
+
+    /* TABS */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      padding: 0 0 12px;
+    }
+    .tab {
+      flex: 1; padding: 8px 4px; border: none; background: none;
+      font-size: 13px; font-weight: 500; color: var(--gray-400);
+      cursor: pointer; border-radius: var(--radius-sm); transition: all 0.2s;
+    }
+    .tab.active { background: var(--blue); color: white; font-weight: 600; }
+
+    /* STATS */
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      padding: 16px 20px;
+    }
+    .stat-card {
+      background: white;
+      border-radius: var(--radius);
+      padding: 14px 12px;
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+    .stat-label { font-size: 11px; color: var(--gray-400); font-weight: 500; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-amount { font-size: 16px; font-weight: 800; color: var(--gray-900); }
+    .stat-amount.highlight { color: var(--blue); }
+
+    /* ADD BUTTON */
+    .add-btn {
+      position: fixed;
+      bottom: 24px;
+      right: 50%;
+      transform: translateX(50%);
+      max-width: 390px;
+      width: calc(100% - 40px);
+      background: var(--blue);
+      color: white;
+      border: none;
+      border-radius: 999px;
+      padding: 16px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(30,58,245,0.4);
+      z-index: 200;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .add-btn:active { transform: translateX(50%) scale(0.97); }
+
+    /* MODAL */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 300;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: white;
+      border-radius: 24px 24px 0 0;
+      padding: 24px 20px 40px;
+      width: 100%;
+      max-width: 430px;
+      animation: slideUp 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .modal-handle { width: 40px; height: 4px; background: var(--gray-200); border-radius: 2px; margin: 0 auto 20px; }
+    .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+    .form-group { margin-bottom: 14px; }
+    .form-label { font-size: 12px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
+    .form-input {
+      width: 100%; padding: 14px 16px;
+      background: var(--gray-50); border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius-sm); font-size: 16px; outline: none;
+      transition: border-color 0.2s; font-family: inherit;
+    }
+    .form-input:focus { border-color: var(--blue); background: white; }
+    .amount-input { font-size: 28px; font-weight: 800; text-align: center; color: var(--blue); }
+    .amount-input::placeholder { color: var(--gray-200); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .submit-btn {
+      width: 100%; padding: 16px; background: var(--blue);
+      color: white; border: none; border-radius: var(--radius-sm);
+      font-size: 17px; font-weight: 700; cursor: pointer; margin-top: 8px;
+      font-family: inherit;
+    }
+    .cancel-btn {
+      width: 100%; padding: 12px; background: none; border: none;
+      color: var(--gray-400); font-size: 15px; cursor: pointer; margin-top: 4px;
+      font-family: inherit;
+    }
+
+    /* EMOJI PICKER */
+    .emoji-picker-row { display: flex; gap: 10px; align-items: flex-start; }
+    .emoji-btn {
+      width: 54px; height: 54px; border-radius: var(--radius-sm);
+      background: var(--gray-50); border: 1.5px solid var(--gray-200);
+      font-size: 26px; cursor: pointer; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      transition: border-color 0.2s;
+    }
+    .emoji-btn:focus { border-color: var(--blue); outline: none; }
+    .emoji-grid-wrapper {
+      display: none; position: absolute; z-index: 400;
+      background: white; border-radius: var(--radius);
+      box-shadow: var(--shadow-lg); padding: 12px;
+      width: 280px; left: 20px;
+    }
+    .emoji-grid-wrapper.open { display: block; }
+    .emoji-search {
+      width: 100%; padding: 8px 12px; border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius-sm); font-size: 14px; outline: none;
+      margin-bottom: 10px; font-family: inherit;
+    }
+    .emoji-search:focus { border-color: var(--blue); }
+    .emoji-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; max-height: 200px; overflow-y: auto; }
+    .emoji-option {
+      font-size: 22px; padding: 6px; border: none; background: none;
+      cursor: pointer; border-radius: 8px; text-align: center; transition: background 0.15s;
+    }
+    .emoji-option:hover { background: var(--gray-100); }
+
+    /* CATEGORIES CHIPS */
+    .cat-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .cat-chip {
+      padding: 5px 12px; background: var(--gray-100); border-radius: 99px;
+      font-size: 13px; color: var(--gray-700); cursor: pointer; border: none;
+      font-family: inherit; transition: all 0.15s;
+    }
+    .cat-chip:active { background: var(--blue-light); color: var(--blue); }
+
+    /* CONTENT */
+    .content { padding: 0 20px 120px; }
+
+    /* CATEGORY BREAKDOWN */
+    .section-title { font-size: 13px; font-weight: 700; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.5px; margin: 8px 0 10px; }
+    .cat-breakdown { display: grid; gap: 8px; margin-bottom: 20px; }
+    .cat-row {
+      background: white; border-radius: var(--radius); padding: 14px 16px;
+      box-shadow: var(--shadow); display: flex; align-items: center; gap: 12px;
+    }
+    .cat-emoji { font-size: 22px; }
+    .cat-info { flex: 1; }
+    .cat-name { font-size: 14px; font-weight: 600; color: var(--gray-900); }
+    .cat-count { font-size: 12px; color: var(--gray-400); margin-top: 1px; }
+    .cat-total { font-size: 15px; font-weight: 800; color: var(--gray-900); }
+    .cat-bar-track { height: 3px; background: var(--gray-100); border-radius: 99px; margin-top: 6px; }
+    .cat-bar-fill { height: 100%; border-radius: 99px; background: var(--blue); }
+
+    /* EXPENSE LIST */
+    .expense-group { margin-bottom: 16px; }
+    .expense-group-title { font-size: 12px; font-weight: 700; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .expense-item {
+      background: white; border-radius: var(--radius); padding: 14px 16px;
+      box-shadow: var(--shadow); display: flex; align-items: center; gap: 12px;
+      margin-bottom: 8px;
+    }
+    .expense-cat-badge {
+      width: 42px; height: 42px; border-radius: 12px;
+      background: var(--blue-light); display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .expense-info { flex: 1; min-width: 0; }
+    .expense-cat-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .expense-desc { font-size: 12px; color: var(--gray-400); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .expense-right { text-align: right; flex-shrink: 0; }
+    .expense-amount { font-size: 15px; font-weight: 800; color: var(--gray-900); }
+    .expense-time { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
+    .expense-delete {
+      background: none; border: none; color: var(--gray-300);
+      font-size: 18px; cursor: pointer; padding: 4px; line-height: 1;
+    }
+
+    /* EXPORT */
+    .export-btn {
+      width: 100%; padding: 14px; background: white; border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius-sm); font-size: 14px; font-weight: 600;
+      color: var(--gray-700); cursor: pointer; margin-bottom: 12px;
+      font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+
+    /* EMPTY */
+    .empty { text-align: center; padding: 48px 20px; color: var(--gray-400); }
+    .empty-icon { font-size: 48px; margin-bottom: 12px; }
+    .empty-text { font-size: 15px; }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-top">
+    <div>
+      <div class="header-title">💰 Mes Dépenses</div>
+      <div class="header-date" id="headerDate"></div>
+    </div>
+    <button class="budget-toggle-btn" id="budgetToggleBtn" onclick="toggleBudget()">
+      <div class="toggle-dot"></div>
+      Budget
+    </button>
+  </div>
+
+  <!-- BUDGET BAR -->
+  <div class="budget-bar-section" id="budgetSection">
+    <div class="budget-bar-header">
+      <span class="budget-bar-label">Budget mensuel</span>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <span style="font-size:13px;color:var(--gray-400)">€</span>
+        <input type="number" class="budget-amount-input" id="budgetInput" placeholder="0" onchange="saveBudget()" oninput="updateBudgetBar()">
+      </div>
+    </div>
+    <div class="budget-track">
+      <div class="budget-fill" id="budgetFill" style="width:0%"></div>
+    </div>
+    <div class="budget-sub">
+      <span id="budgetSpent">0 € dépensé</span>
+      <span id="budgetRemain">0 € restant</span>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="setFilter('day')">Aujourd'hui</button>
+    <button class="tab" onclick="setFilter('week')">Semaine</button>
+    <button class="tab" onclick="setFilter('month')">Mois</button>
+    <button class="tab" onclick="setFilter('all')">Tout</button>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats">
+  <div class="stat-card">
+    <div class="stat-label">Jour</div>
+    <div class="stat-amount" id="statDay">0 €</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Semaine</div>
+    <div class="stat-amount highlight" id="statWeek">0 €</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Mois</div>
+    <div class="stat-amount" id="statMonth">0 €</div>
+  </div>
+</div>
+
+<!-- CONTENT -->
+<div class="content">
+  <div id="exportSection" style="display:none">
+    <button class="export-btn" onclick="exportCSV()">📥 Exporter en CSV</button>
+  </div>
+  <div class="section-title">Par catégorie</div>
+  <div class="cat-breakdown" id="catBreakdown"></div>
+  <div class="section-title">Dépenses</div>
+  <div id="expenseList"></div>
+</div>
+
+<!-- ADD BUTTON -->
+<button class="add-btn" onclick="openModal()">+ Ajouter une dépense</button>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
+  <div class="modal" id="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Nouvelle dépense</div>
+
+    <div class="form-group">
+      <label class="form-label">Montant</label>
+      <div style="position:relative">
+        <input type="number" class="form-input amount-input" id="amountInput" placeholder="0.00" step="0.01" min="0">
+        <span style="position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:22px;font-weight:700;color:var(--gray-300)">€</span>
+      </div>
+    </div>
+
+    <div class="form-group" style="position:relative">
+      <label class="form-label">Catégorie</label>
+      <div class="emoji-picker-row">
+        <button type="button" class="emoji-btn" id="emojiBtn" onclick="toggleEmojiPicker(event)">💸</button>
+        <input type="text" class="form-input" id="categoryInput" placeholder="Ex : Alimentation, Transport..." oninput="filterCatChips(this.value)" autocomplete="off" style="flex:1">
+      </div>
+      <div class="emoji-grid-wrapper" id="emojiGrid">
+        <input type="text" class="emoji-search" placeholder="Rechercher un emoji..." oninput="filterEmojis(this.value)">
+        <div class="emoji-grid" id="emojiGridInner"></div>
+      </div>
+      <div class="cat-chips" id="catChips"></div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Description (optionnel)</label>
+      <input type="text" class="form-input" id="descInput" placeholder="Ex : Courses Lidl, Essence...">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input type="date" class="form-input" id="dateInput">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Heure</label>
+        <input type="time" class="form-input" id="timeInput">
+      </div>
+    </div>
+
+    <button class="submit-btn" onclick="addExpense()">Ajouter</button>
+    <button class="cancel-btn" onclick="closeModal()">Annuler</button>
+  </div>
+</div>
+
+<script>
+  // ─── STATE ───────────────────────────────────────────────────────────────────
+  let expenses = JSON.parse(localStorage.getItem('expenses') || '[]');
+  let categories = JSON.parse(localStorage.getItem('categories') || '[]');
+  let categoryEmojis = JSON.parse(localStorage.getItem('categoryEmojis') || '{}');
+  let budget = JSON.parse(localStorage.getItem('budget') || '{"enabled":false,"amount":0}');
+  let currentFilter = 'day';
+  let selectedEmoji = '💸';
+
+  const ALL_EMOJIS = [
+    '💸','💰','💳','🛒','🛍️','🏠','🚗','⛽','🚌','🚇','✈️','🏨','🍔','🍕','🍣','🥗','☕','🍷',
+    '🛒','🥦','🧃','🍞','🥩','🧴','💊','🏥','🩺','💉','👗','👟','👔','💄','💇','💅','🏋️',
+    '🎮','📱','💻','📺','🎵','🎬','🎭','📚','🎓','✏️','🐕','🐈','🌿','🌍','🏖️','🏔️','🎁',
+    '🎂','🎉','📣','🌙','⭐','🕌','📿','🤲','🧿','💡','🔌','📶','🏡','🔧','🧹','🧺','👶',
+    '👨‍👩‍👧','❤️','💪','🧘','⚽','🎾','🏊','🚴','🎨','✂️','🪴','🕯️','🛁','🪥','🧼'
+  ];
+
+  function getEmoji(cat) {
+    if (categoryEmojis[cat]) return categoryEmojis[cat];
+    const map = {
+      'alimentation':'🛒','courses':'🛒','supermarché':'🛒',
+      'transport':'🚗','carburant':'⛽','essence':'⛽','uber':'🚗',
+      'restaurant':'🍔','café':'☕','fast food':'🍔',
+      'santé':'💊','médecin':'🏥','pharmacie':'💊',
+      'vêtements':'👗','shopping':'🛍️','mode':'👗',
+      'électricité':'💡','internet':'📶','téléphone':'📱',
+      'jeux':'🎮','loisirs':'🎭','cinéma':'🎬',
+      'voyage':'✈️','hôtel':'🏨','vacances':'🌴',
+      'logement':'🏠','loyer':'🏠','charges':'💡',
+      'education':'📚','formation':'🎓','livre':'📚',
+      'musique':'🎵','spotify':'🎵',
+      'beauté':'💄','coiffeur':'💇','sport':'🏋️',
+      'animaux':'🐕','vétérinaire':'🐕',
+      'lumiira':'🌙','marketing':'📣','publicité':'📣',
+      'cadeau':'🎁',
+    };
+    const lower = cat.toLowerCase();
+    for (const [key, emoji] of Object.entries(map)) {
+      if (lower.includes(key)) return emoji;
+    }
+    return ALL_EMOJIS[cat.charCodeAt(0) % ALL_EMOJIS.length] || '💸';
+  }
+
+  // ─── EMOJI PICKER ─────────────────────────────────────────────────────────────
+  function renderEmojiGrid(filter) {
+    const grid = document.getElementById('emojiGridInner');
+    const list = filter ? ALL_EMOJIS.filter(e => e.includes(filter)) : ALL_EMOJIS;
+    grid.innerHTML = list.map(e =>
+      `<button class="emoji-option" onclick="selectEmoji('${e}')">${e}</button>`
+    ).join('');
+  }
+
+  function toggleEmojiPicker(e) {
+    e.stopPropagation();
+    const grid = document.getElementById('emojiGrid');
+    const isOpen = grid.classList.contains('open');
+    grid.classList.toggle('open', !isOpen);
+    if (!isOpen) {
+      renderEmojiGrid('');
+      document.querySelector('.emoji-search').value = '';
+    }
+  }
+
+  function filterEmojis(val) { renderEmojiGrid(val); }
+
+  function selectEmoji(emoji) {
+    selectedEmoji = emoji;
+    document.getElementById('emojiBtn').textContent = emoji;
+    document.getElementById('emojiGrid').classList.remove('open');
+  }
+
+  document.addEventListener('click', () => {
+    document.getElementById('emojiGrid')?.classList.remove('open');
+  });
+
+  // ─── DATE UTILS ──────────────────────────────────────────────────────────────
+  function today() { return new Date().toISOString().split('T')[0]; }
+  function formatDate(d) {
+    return new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
+  }
+  function formatTime(ts) {
+    return new Date(ts).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+  }
+  function formatShortDate(d) {
+    return new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', { day:'numeric', month:'short' });
+  }
+  function isInFilter(exp, filter) {
+    const d = new Date(exp.date + 'T00:00:00');
+    const now = new Date();
+    if (filter === 'day') return exp.date === today();
+    if (filter === 'week') {
+      const start = new Date(now); start.setDate(now.getDate() - now.getDay() + (now.getDay()===0?-6:1));
+      start.setHours(0,0,0,0);
+      return d >= start;
+    }
+    if (filter === 'month') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    return true;
+  }
+
+  function fmt(n) { return n.toFixed(2).replace('.', ',') + ' €'; }
+
+  // ─── FILTER ──────────────────────────────────────────────────────────────────
+  function setFilter(f) {
+    currentFilter = f;
+    document.querySelectorAll('.tab').forEach((t,i) => {
+      t.classList.toggle('active', ['day','week','month','all'][i] === f);
+    });
+    render();
+  }
+
+  // ─── RENDER ──────────────────────────────────────────────────────────────────
+  function render() {
+    const filtered = expenses.filter(e => isInFilter(e, currentFilter));
+
+    // Stats
+    const dayTotal = expenses.filter(e => isInFilter(e,'day')).reduce((s,e) => s+e.amount, 0);
+    const weekTotal = expenses.filter(e => isInFilter(e,'week')).reduce((s,e) => s+e.amount, 0);
+    const monthTotal = expenses.filter(e => isInFilter(e,'month')).reduce((s,e) => s+e.amount, 0);
+    document.getElementById('statDay').textContent = fmt(dayTotal);
+    document.getElementById('statWeek').textContent = fmt(weekTotal);
+    document.getElementById('statMonth').textContent = fmt(monthTotal);
+
+    // Budget bar
+    updateBudgetBar(monthTotal);
+
+    // Export button
+    document.getElementById('exportSection').style.display = filtered.length ? 'block' : 'none';
+
+    // Category breakdown
+    const catMap = {};
+    filtered.forEach(e => {
+      if (!catMap[e.category]) catMap[e.category] = { total: 0, count: 0 };
+      catMap[e.category].total += e.amount;
+      catMap[e.category].count++;
+    });
+    const catSorted = Object.entries(catMap).sort((a,b) => b[1].total - a[1].total);
+    const maxCat = catSorted[0]?.[1].total || 1;
+    const catBreakdown = document.getElementById('catBreakdown');
+    if (catSorted.length === 0) {
+      catBreakdown.innerHTML = '';
+    } else {
+      catBreakdown.innerHTML = catSorted.map(([name, data]) => `
+        <div class="cat-row">
+          <div class="cat-emoji">${getEmoji(name)}</div>
+          <div class="cat-info">
+            <div class="cat-name">${name}</div>
+            <div class="cat-count">${data.count} dépense${data.count>1?'s':''}</div>
+            <div class="cat-bar-track"><div class="cat-bar-fill" style="width:${(data.total/maxCat*100).toFixed(0)}%"></div></div>
+          </div>
+          <div class="cat-total">${fmt(data.total)}</div>
+        </div>
+      `).join('');
+    }
+
+    // Expense list grouped by date
+    const grouped = {};
+    filtered.forEach(e => {
+      if (!grouped[e.date]) grouped[e.date] = [];
+      grouped[e.date].push(e);
+    });
+    const dates = Object.keys(grouped).sort((a,b) => b.localeCompare(a));
+    const listEl = document.getElementById('expenseList');
+    if (dates.length === 0) {
+      listEl.innerHTML = `<div class="empty"><div class="empty-icon">💸</div><div class="empty-text">Aucune dépense pour cette période</div></div>`;
+      return;
+    }
+    listEl.innerHTML = dates.map(date => `
+      <div class="expense-group">
+        <div class="expense-group-title">${date === today() ? 'Aujourd\'hui' : formatDate(date)}</div>
+        ${grouped[date].sort((a,b) => b.createdAt - a.createdAt).map(e => `
+          <div class="expense-item">
+            <div class="expense-cat-badge">${getEmoji(e.category)}</div>
+            <div class="expense-info">
+              <div class="expense-cat-name">${e.category}</div>
+              <div class="expense-desc">${e.description || '—'}</div>
+            </div>
+            <div class="expense-right">
+              <div class="expense-amount">${fmt(e.amount)}</div>
+              <div class="expense-time">${formatShortDate(e.date)} · ${formatTime(e.createdAt)}</div>
+            </div>
+            <button class="expense-delete" onclick="deleteExpense('${e.id}')" title="Supprimer">✕</button>
+          </div>
+        `).join('')}
+      </div>
+    `).join('');
+  }
+
+  // ─── BUDGET ──────────────────────────────────────────────────────────────────
+  function toggleBudget() {
+    budget.enabled = !budget.enabled;
+    saveBudget();
+    document.getElementById('budgetToggleBtn').classList.toggle('active', budget.enabled);
+    document.getElementById('budgetSection').classList.toggle('visible', budget.enabled);
+    updateBudgetBar();
+  }
+
+  function saveBudget() {
+    const val = parseFloat(document.getElementById('budgetInput').value) || 0;
+    budget.amount = val;
+    localStorage.setItem('budget', JSON.stringify(budget));
+    updateBudgetBar();
+  }
+
+  function updateBudgetBar(spent) {
+    if (!budget.enabled) return;
+    const monthTotal = spent !== undefined ? spent : expenses.filter(e => isInFilter(e,'month')).reduce((s,e) => s+e.amount, 0);
+    const max = budget.amount || 1;
+    const pct = Math.min((monthTotal / max) * 100, 100);
+    const fill = document.getElementById('budgetFill');
+    fill.style.width = pct + '%';
+    fill.className = 'budget-fill' + (pct >= 90 ? ' danger' : pct >= 70 ? ' warning' : '');
+    document.getElementById('budgetSpent').textContent = fmt(monthTotal) + ' dépensé';
+    document.getElementById('budgetRemain').textContent = fmt(Math.max(budget.amount - monthTotal, 0)) + ' restant';
+  }
+
+  // ─── MODAL ───────────────────────────────────────────────────────────────────
+  function openModal() {
+    document.getElementById('amountInput').value = '';
+    document.getElementById('categoryInput').value = '';
+    document.getElementById('descInput').value = '';
+    document.getElementById('dateInput').value = today();
+    const now = new Date();
+    document.getElementById('timeInput').value = now.toTimeString().slice(0,5);
+    selectedEmoji = '💸';
+    document.getElementById('emojiBtn').textContent = '💸';
+    document.getElementById('emojiGrid').classList.remove('open');
+    renderCatChips('');
+    document.getElementById('modalOverlay').classList.add('open');
+    setTimeout(() => document.getElementById('amountInput').focus(), 300);
+  }
+
+  function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('open');
+  }
+
+  function handleOverlayClick(e) {
+    if (e.target === document.getElementById('modalOverlay')) closeModal();
+  }
+
+  function renderCatChips(filter) {
+    const chips = document.getElementById('catChips');
+    const filtered = categories.filter(c => !filter || c.toLowerCase().includes(filter.toLowerCase()));
+    chips.innerHTML = filtered.slice(0, 8).map(c =>
+      `<button class="cat-chip" onclick="selectCat('${c.replace(/'/g,"\\'")}')"> ${getEmoji(c)} ${c}</button>`
+    ).join('');
+  }
+
+  function filterCatChips(val) { renderCatChips(val); }
+  function selectCat(c) {
+    document.getElementById('categoryInput').value = c;
+    const emoji = getEmoji(c);
+    selectedEmoji = emoji;
+    document.getElementById('emojiBtn').textContent = emoji;
+  }
+
+  // ─── ADD / DELETE ─────────────────────────────────────────────────────────────
+  function addExpense() {
+    const amount = parseFloat(document.getElementById('amountInput').value);
+    const category = document.getElementById('categoryInput').value.trim();
+    const description = document.getElementById('descInput').value.trim();
+    const date = document.getElementById('dateInput').value;
+    const time = document.getElementById('timeInput').value;
+
+    if (!amount || amount <= 0) { alert('Merci d\'entrer un montant valide.'); return; }
+    if (!category) { alert('Merci d\'entrer une catégorie.'); return; }
+    if (!date) { alert('Merci de sélectionner une date.'); return; }
+
+    const [h, m] = time.split(':').map(Number);
+    const dt = new Date(date + 'T00:00:00');
+    dt.setHours(h || 0, m || 0, 0, 0);
+
+    const expense = { id: Date.now().toString(), amount, category, description, date, createdAt: dt.getTime() };
+    expenses.unshift(expense);
+
+    // Sauvegarder l'emoji choisi pour cette catégorie
+    categoryEmojis[category] = selectedEmoji;
+    localStorage.setItem('categoryEmojis', JSON.stringify(categoryEmojis));
+
+    if (!categories.includes(category)) {
+      categories.unshift(category);
+      if (categories.length > 50) categories = categories.slice(0, 50);
+      localStorage.setItem('categories', JSON.stringify(categories));
+    }
+
+    localStorage.setItem('expenses', JSON.stringify(expenses));
+    closeModal();
+    render();
+  }
+
+  function deleteExpense(id) {
+    if (!confirm('Supprimer cette dépense ?')) return;
+    expenses = expenses.filter(e => e.id !== id);
+    localStorage.setItem('expenses', JSON.stringify(expenses));
+    render();
+  }
+
+  // ─── EXPORT CSV ──────────────────────────────────────────────────────────────
+  function exportCSV() {
+    const filtered = expenses.filter(e => isInFilter(e, currentFilter));
+    const header = ['Date','Heure','Catégorie','Description','Montant (€)'];
+    const rows = filtered.map(e => [
+      e.date,
+      formatTime(e.createdAt),
+      e.category,
+      e.description || '',
+      e.amount.toFixed(2)
+    ]);
+    const csv = [header, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const labels = { day: 'aujourd-hui', week: 'semaine', month: 'mois', all: 'tout' };
+    a.href = url;
+    a.download = `depenses-${labels[currentFilter]}-${today()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ─── INIT ─────────────────────────────────────────────────────────────────────
+  function init() {
+    // Header date
+    document.getElementById('headerDate').textContent = new Date().toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+    // Restore budget
+    document.getElementById('budgetInput').value = budget.amount || '';
+    document.getElementById('budgetToggleBtn').classList.toggle('active', budget.enabled);
+    document.getElementById('budgetSection').classList.toggle('visible', budget.enabled);
+
+    render();
+  }
+
+  init();
+
+  // Service Worker pour mode offline
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    });
+  }
+</script>
+</body>
+</html>
