@@ -275,9 +275,14 @@
     .expense-right { text-align: right; flex-shrink: 0; }
     .expense-amount { font-size: 15px; font-weight: 800; color: var(--gray-900); }
     .expense-time { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
+    .expense-actions { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
     .expense-delete {
       background: none; border: none; color: var(--gray-300);
-      font-size: 18px; cursor: pointer; padding: 4px; line-height: 1;
+      font-size: 16px; cursor: pointer; padding: 4px; line-height: 1;
+    }
+    .expense-edit {
+      background: none; border: none; color: var(--blue);
+      font-size: 14px; cursor: pointer; padding: 4px; line-height: 1;
     }
 
     /* EXPORT */
@@ -422,6 +427,7 @@
   let budget = JSON.parse(localStorage.getItem('budget') || '{"enabled":false,"amount":0}');
   let currentFilter = 'day';
   let selectedEmoji = '💸';
+  let editingId = null;
 
   const ALL_EMOJIS = [
     '💸','💰','💳','🛒','🛍️','🏠','🚗','⛽','🚌','🚇','✈️','🏨','🍔','🍕','🍣','🥗','☕','🍷',
@@ -594,7 +600,10 @@
               <div class="expense-amount">${fmt(e.amount)}</div>
               <div class="expense-time">${formatShortDate(e.date)} · ${formatTime(e.createdAt)}</div>
             </div>
-            <button class="expense-delete" onclick="deleteExpense('${e.id}')" title="Supprimer">✕</button>
+            <div class="expense-actions">
+              <button class="expense-edit" onclick="editExpense('${e.id}')" title="Modifier">✏️</button>
+              <button class="expense-delete" onclick="deleteExpense('${e.id}')" title="Supprimer">✕</button>
+            </div>
           </div>
         `).join('')}
       </div>
@@ -631,6 +640,9 @@
 
   // ─── MODAL ───────────────────────────────────────────────────────────────────
   function openModal() {
+    editingId = null;
+    document.querySelector('.modal-title').textContent = 'Nouvelle dépense';
+    document.querySelector('.submit-btn').textContent = 'Ajouter';
     document.getElementById('amountInput').value = '';
     document.getElementById('categoryInput').value = '';
     document.getElementById('descInput').value = '';
@@ -643,6 +655,25 @@
     renderCatChips('');
     document.getElementById('modalOverlay').classList.add('open');
     setTimeout(() => document.getElementById('amountInput').focus(), 300);
+  }
+
+  function editExpense(id) {
+    const e = expenses.find(x => x.id === id);
+    if (!e) return;
+    editingId = id;
+    document.querySelector('.modal-title').textContent = 'Modifier la dépense';
+    document.querySelector('.submit-btn').textContent = 'Enregistrer';
+    document.getElementById('amountInput').value = e.amount;
+    document.getElementById('categoryInput').value = e.category;
+    document.getElementById('descInput').value = e.description || '';
+    document.getElementById('dateInput').value = e.date;
+    const t = new Date(e.createdAt);
+    document.getElementById('timeInput').value = t.toTimeString().slice(0,5);
+    selectedEmoji = getEmoji(e.category);
+    document.getElementById('emojiBtn').textContent = selectedEmoji;
+    document.getElementById('emojiGrid').classList.remove('open');
+    renderCatChips('');
+    document.getElementById('modalOverlay').classList.add('open');
   }
 
   function closeModal() {
@@ -685,8 +716,16 @@
     const dt = new Date(date + 'T00:00:00');
     dt.setHours(h || 0, m || 0, 0, 0);
 
-    const expense = { id: Date.now().toString(), amount, category, description, date, createdAt: dt.getTime() };
-    expenses.unshift(expense);
+    if (editingId) {
+      const idx = expenses.findIndex(x => x.id === editingId);
+      if (idx !== -1) {
+        expenses[idx] = { ...expenses[idx], amount, category, description, date, createdAt: dt.getTime() };
+      }
+      editingId = null;
+    } else {
+      const expense = { id: Date.now().toString(), amount, category, description, date, createdAt: dt.getTime() };
+      expenses.unshift(expense);
+    }
 
     // Sauvegarder l'emoji choisi pour cette catégorie
     categoryEmojis[category] = selectedEmoji;
