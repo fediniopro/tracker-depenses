@@ -253,8 +253,34 @@
     .cat-name { font-size: 14px; font-weight: 600; color: var(--gray-900); }
     .cat-count { font-size: 12px; color: var(--gray-400); margin-top: 1px; }
     .cat-total { font-size: 15px; font-weight: 800; color: var(--gray-900); }
-    .cat-bar-track { height: 3px; background: var(--gray-100); border-radius: 99px; margin-top: 6px; }
-    .cat-bar-fill { height: 100%; border-radius: 99px; background: var(--blue); }
+    .cat-bar-track { height: 5px; background: var(--gray-100); border-radius: 99px; margin-top: 6px; }
+    .cat-bar-fill { height: 100%; border-radius: 99px; background: var(--blue); transition: width 0.4s, background 0.3s; }
+    .cat-bar-fill.warning { background: var(--orange); }
+    .cat-bar-fill.danger { background: var(--red); }
+    .cat-budget-status { font-size: 11px; font-weight: 600; margin-top: 4px; }
+    .cat-budget-status.ok { color: var(--green); }
+    .cat-budget-status.full { color: var(--orange); }
+    .cat-budget-status.over { color: var(--red); }
+    .cat-budget-btn {
+      background: none; border: 1.5px dashed var(--gray-200); border-radius: 8px;
+      padding: 3px 8px; font-size: 11px; color: var(--gray-400); cursor: pointer;
+      font-family: inherit; margin-top: 5px; display: inline-flex; align-items: center; gap: 4px;
+      transition: all 0.2s;
+    }
+    .cat-budget-btn:hover { border-color: var(--blue); color: var(--blue); }
+    .cat-budget-btn.set { border-style: solid; border-color: var(--gray-200); color: var(--gray-500); }
+    .cat-budget-input-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+    .cat-budget-input {
+      width: 90px; padding: 4px 8px; border: 1.5px solid var(--blue);
+      border-radius: 8px; font-size: 13px; font-weight: 700; color: var(--blue);
+      outline: none; font-family: inherit; background: var(--blue-light);
+    }
+    .cat-budget-save {
+      padding: 4px 10px; background: var(--blue); color: white; border: none;
+      border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer;
+      font-family: inherit;
+    }
+    .cat-budget-clear { background: none; border: none; color: var(--gray-400); font-size: 14px; cursor: pointer; }
 
     /* EXPENSE LIST */
     .expense-group { margin-bottom: 16px; }
@@ -275,9 +301,14 @@
     .expense-right { text-align: right; flex-shrink: 0; }
     .expense-amount { font-size: 15px; font-weight: 800; color: var(--gray-900); }
     .expense-time { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
+    .expense-actions { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
     .expense-delete {
       background: none; border: none; color: var(--gray-300);
-      font-size: 18px; cursor: pointer; padding: 4px; line-height: 1;
+      font-size: 16px; cursor: pointer; padding: 4px; line-height: 1;
+    }
+    .expense-edit {
+      background: none; border: none; color: var(--blue);
+      font-size: 14px; cursor: pointer; padding: 4px; line-height: 1;
     }
 
     /* EXPORT */
@@ -419,9 +450,12 @@
   let expenses = JSON.parse(localStorage.getItem('expenses') || '[]');
   let categories = JSON.parse(localStorage.getItem('categories') || '[]');
   let categoryEmojis = JSON.parse(localStorage.getItem('categoryEmojis') || '{}');
+  let categoryBudgets = JSON.parse(localStorage.getItem('categoryBudgets') || '{}');
+  let budgetInputOpen = null;
   let budget = JSON.parse(localStorage.getItem('budget') || '{"enabled":false,"amount":0}');
   let currentFilter = 'day';
   let selectedEmoji = '💸';
+  let editingId = null;
 
   const ALL_EMOJIS = [
     '💸','💰','💳','🛒','🛍️','🏠','🚗','⛽','🚌','🚇','✈️','🏨','🍔','🍕','🍣','🥗','☕','🍷',
@@ -497,6 +531,9 @@
   function formatTime(ts) {
     return new Date(ts).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
   }
+  function formatShortDate(d) {
+    return new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', { day:'numeric', month:'short' });
+  }
   function isInFilter(exp, filter) {
     const d = new Date(exp.date + 'T00:00:00');
     const now = new Date();
@@ -552,17 +589,46 @@
     if (catSorted.length === 0) {
       catBreakdown.innerHTML = '';
     } else {
-      catBreakdown.innerHTML = catSorted.map(([name, data]) => `
-        <div class="cat-row">
+      catBreakdown.innerHTML = catSorted.map(([name, data]) => {
+        const budget = categoryBudgets[name];
+        const isOpen = budgetInputOpen === name;
+        let barPct, barClass, statusHtml;
+        if (budget) {
+          const pct = (data.total / budget) * 100;
+          barPct = Math.min(pct, 100).toFixed(0);
+          barClass = pct >= 100 ? 'danger' : pct >= 80 ? 'warning' : '';
+          if (pct < 100) {
+            statusHtml = `<div class="cat-budget-status ok">✅ Il te reste ${fmt(budget - data.total)}</div>`;
+          } else if (Math.abs(pct - 100) < 0.01) {
+            statusHtml = `<div class="cat-budget-status full">🟡 Budget atteint à 100%</div>`;
+          } else {
+            statusHtml = `<div class="cat-budget-status over">🚨 Dépassement de ${fmt(data.total - budget)}</div>`;
+          }
+        } else {
+          barPct = (data.total / maxCat * 100).toFixed(0);
+          barClass = '';
+          statusHtml = '';
+        }
+        const budgetBtnLabel = budget ? `Budget : ${fmt(budget)}` : '+ Définir un budget';
+        const inputHtml = isOpen ? `
+          <div class="cat-budget-input-row">
+            <input class="cat-budget-input" type="number" id="budgetInput_${name.replace(/\s/g,'_')}" value="${budget||''}" placeholder="Ex: 200" min="0" step="1">
+            <button class="cat-budget-save" onclick="saveCategoryBudget('${name.replace(/'/g,"\\'")}')">OK</button>
+            ${budget ? `<button class="cat-budget-clear" onclick="clearCategoryBudget('${name.replace(/'/g,"\\'")}')">🗑️</button>` : ''}
+          </div>` : `<button class="cat-budget-btn ${budget?'set':''}" onclick="toggleBudgetInput('${name.replace(/'/g,"\\'")}')">🎯 ${budgetBtnLabel}</button>`;
+        return `
+        <div class="cat-row" style="flex-wrap:wrap">
           <div class="cat-emoji">${getEmoji(name)}</div>
-          <div class="cat-info">
+          <div class="cat-info" style="min-width:0;flex:1">
             <div class="cat-name">${name}</div>
             <div class="cat-count">${data.count} dépense${data.count>1?'s':''}</div>
-            <div class="cat-bar-track"><div class="cat-bar-fill" style="width:${(data.total/maxCat*100).toFixed(0)}%"></div></div>
+            <div class="cat-bar-track"><div class="cat-bar-fill ${barClass}" style="width:${barPct}%"></div></div>
+            ${statusHtml}
+            ${inputHtml}
           </div>
           <div class="cat-total">${fmt(data.total)}</div>
-        </div>
-      `).join('');
+        </div>`;
+      }).join('');
     }
 
     // Expense list grouped by date
@@ -589,16 +655,59 @@
             </div>
             <div class="expense-right">
               <div class="expense-amount">${fmt(e.amount)}</div>
-              <div class="expense-time">${formatTime(e.createdAt)}</div>
+              <div class="expense-time">${formatShortDate(e.date)} · ${formatTime(e.createdAt)}</div>
             </div>
-            <button class="expense-delete" onclick="deleteExpense('${e.id}')" title="Supprimer">✕</button>
+            <div class="expense-actions">
+              <button class="expense-edit" onclick="editExpense('${e.id}')" title="Modifier">✏️</button>
+              <button class="expense-delete" onclick="deleteExpense('${e.id}')" title="Supprimer">✕</button>
+            </div>
           </div>
         `).join('')}
       </div>
     `).join('');
   }
 
-  // ─── BUDGET ──────────────────────────────────────────────────────────────────
+  // ─── BUDGET PAR CATÉGORIE ────────────────────────────────────────────────────
+  function toggleBudgetInput(cat) {
+    budgetInputOpen = budgetInputOpen === cat ? null : cat;
+    render();
+    if (budgetInputOpen) {
+      setTimeout(() => {
+        const el = document.getElementById('budgetInput_' + cat.replace(/\s/g,'_'));
+        if (el) el.focus();
+      }, 50);
+    }
+  }
+
+  function saveCategoryBudget(cat) {
+    const el = document.getElementById('budgetInput_' + cat.replace(/\s/g,'_'));
+    const val = parseFloat(el?.value);
+    if (!val || val <= 0) return;
+    categoryBudgets[cat] = val;
+    localStorage.setItem('categoryBudgets', JSON.stringify(categoryBudgets));
+    budgetInputOpen = null;
+    render();
+  }
+
+  function clearCategoryBudget(cat) {
+    delete categoryBudgets[cat];
+    localStorage.setItem('categoryBudgets', JSON.stringify(categoryBudgets));
+    budgetInputOpen = null;
+    render();
+  }
+
+  function checkCategoryBudget(category, newTotal) {
+    const budget = categoryBudgets[category];
+    if (!budget) return;
+    if (newTotal > budget) {
+      const over = (newTotal - budget).toFixed(2).replace('.', ',');
+      setTimeout(() => alert(`🚨 Budget "${category}" dépassé !\nTu as dépassé de ${over} €.`), 100);
+    } else if (newTotal === budget) {
+      setTimeout(() => alert(`🟡 Budget "${category}" atteint à 100% !`), 100);
+    }
+  }
+
+  // ─── BUDGET GLOBAL ───────────────────────────────────────────────────────────
   function toggleBudget() {
     budget.enabled = !budget.enabled;
     saveBudget();
@@ -628,6 +737,9 @@
 
   // ─── MODAL ───────────────────────────────────────────────────────────────────
   function openModal() {
+    editingId = null;
+    document.querySelector('.modal-title').textContent = 'Nouvelle dépense';
+    document.querySelector('.submit-btn').textContent = 'Ajouter';
     document.getElementById('amountInput').value = '';
     document.getElementById('categoryInput').value = '';
     document.getElementById('descInput').value = '';
@@ -640,6 +752,25 @@
     renderCatChips('');
     document.getElementById('modalOverlay').classList.add('open');
     setTimeout(() => document.getElementById('amountInput').focus(), 300);
+  }
+
+  function editExpense(id) {
+    const e = expenses.find(x => x.id === id);
+    if (!e) return;
+    editingId = id;
+    document.querySelector('.modal-title').textContent = 'Modifier la dépense';
+    document.querySelector('.submit-btn').textContent = 'Enregistrer';
+    document.getElementById('amountInput').value = e.amount;
+    document.getElementById('categoryInput').value = e.category;
+    document.getElementById('descInput').value = e.description || '';
+    document.getElementById('dateInput').value = e.date;
+    const t = new Date(e.createdAt);
+    document.getElementById('timeInput').value = t.toTimeString().slice(0,5);
+    selectedEmoji = getEmoji(e.category);
+    document.getElementById('emojiBtn').textContent = selectedEmoji;
+    document.getElementById('emojiGrid').classList.remove('open');
+    renderCatChips('');
+    document.getElementById('modalOverlay').classList.add('open');
   }
 
   function closeModal() {
@@ -682,8 +813,16 @@
     const dt = new Date(date + 'T00:00:00');
     dt.setHours(h || 0, m || 0, 0, 0);
 
-    const expense = { id: Date.now().toString(), amount, category, description, date, createdAt: dt.getTime() };
-    expenses.unshift(expense);
+    if (editingId) {
+      const idx = expenses.findIndex(x => x.id === editingId);
+      if (idx !== -1) {
+        expenses[idx] = { ...expenses[idx], amount, category, description, date, createdAt: dt.getTime() };
+      }
+      editingId = null;
+    } else {
+      const expense = { id: Date.now().toString(), amount, category, description, date, createdAt: dt.getTime() };
+      expenses.unshift(expense);
+    }
 
     // Sauvegarder l'emoji choisi pour cette catégorie
     categoryEmojis[category] = selectedEmoji;
@@ -698,6 +837,10 @@
     localStorage.setItem('expenses', JSON.stringify(expenses));
     closeModal();
     render();
+
+    // Vérifier le budget de la catégorie
+    const catTotal = expenses.filter(e => e.category === category).reduce((s,e) => s+e.amount, 0);
+    checkCategoryBudget(category, catTotal);
   }
 
   function deleteExpense(id) {
