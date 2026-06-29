@@ -31,6 +31,10 @@
     .month-nav { display:flex; align-items:center; gap:10px; }
     .month-btn { background:rgba(255,255,255,.2); border:none; color:white; width:32px; height:32px; border-radius:99px; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
     .month-label { color:white; font-size:14px; font-weight:700; min-width:110px; text-align:center; }
+    /* FILTER TABS */
+    .filter-tabs { display:flex; gap:6px; padding-bottom:14px; }
+    .filter-tab { flex:1; padding:8px 4px; border:none; border-radius:99px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; background:rgba(255,255,255,.15); color:rgba(255,255,255,.7); transition:all .2s; }
+    .filter-tab.active { background:white; color:var(--blue); }
 
     /* SUMMARY CARD */
     .summary-card { background:white; border-radius:var(--r); margin:16px; box-shadow:var(--shadow-lg); overflow:hidden; }
@@ -171,6 +175,12 @@
       <div class="month-label" id="monthLabel"></div>
       <button class="month-btn" onclick="changeMonth(1)">›</button>
     </div>
+  </div>
+  <div class="filter-tabs">
+    <button class="filter-tab active" id="tab-today" onclick="setFilter('today')">Aujourd'hui</button>
+    <button class="filter-tab" id="tab-week"  onclick="setFilter('week')">Semaine</button>
+    <button class="filter-tab" id="tab-month" onclick="setFilter('month')">Mois</button>
+    <button class="filter-tab" id="tab-all"   onclick="setFilter('all')">Tout</button>
   </div>
 </div>
 
@@ -379,6 +389,7 @@ let editingExpId   = null;
 let editingSalId   = null;
 let currentExpType = 'extra';
 let selectedEmoji  = '💸';
+let currentFilter  = 'today';
 
 const ALL_EMOJIS = ['💸','💰','💳','🛒','🛍️','🏠','🚗','⛽','🚌','🚇','✈️','🏨','🍔','🍕','🍣',
   '🥗','☕','🍷','🥦','🧃','🍞','🥩','🧴','💊','🏥','🩺','👗','👟','👔','💄','💇','💅','🏋️',
@@ -412,6 +423,31 @@ function getEmoji(cat){
   const lower=cat.toLowerCase();
   for(const[k,e] of Object.entries(map)) if(lower.includes(k)) return e;
   return ALL_EMOJIS[cat.charCodeAt(0)%ALL_EMOJIS.length]||'💸';
+}
+
+// ─── FILTER ──────────────────────────────────────────────────────────────────
+function setFilter(f){
+  currentFilter=f;
+  ['today','week','month','all'].forEach(x=>{
+    document.getElementById('tab-'+x).classList.toggle('active', x===f);
+  });
+  render();
+}
+
+function filterExpenses(list){
+  const now=new Date();
+  const todayStr=now.toISOString().split('T')[0];
+  if(currentFilter==='today')
+    return list.filter(e=>e.date===todayStr);
+  if(currentFilter==='week'){
+    const weekAgo=new Date(now); weekAgo.setDate(weekAgo.getDate()-6);
+    const weekStr=weekAgo.toISOString().split('T')[0];
+    return list.filter(e=>e.date>=weekStr);
+  }
+  if(currentFilter==='month')
+    return list.filter(e=>monthOf(e.date)===currentMonth);
+  // 'all'
+  return list;
 }
 
 // ─── MONTH NAV ───────────────────────────────────────────────────────────────
@@ -504,23 +540,23 @@ function render(){
     budgetDefine.style.display = 'block';
   }
 
-  // Courses list
-  const coursesExp=monthExp.filter(e=>e.expType==='courses').sort((a,b)=>b.createdAt-a.createdAt);
+  // Courses list (filtrée)
+  const allCourses=expenses.filter(e=>e.expType==='courses');
+  const coursesExp=filterExpenses(allCourses).sort((a,b)=>b.createdAt-a.createdAt);
   const coursesEl=document.getElementById('coursesList');
-  if(!coursesExp.length){
-    coursesEl.innerHTML='<div class="card"><div class="empty-state">Aucune dépense courses ce mois</div></div>';
-  } else {
-    coursesEl.innerHTML=coursesExp.map(e=>expenseHtml(e,'courses')).join('');
-  }
+  const filterLabelCourses=currentFilter==='today'?'aujourd\'hui':currentFilter==='week'?'cette semaine':currentFilter==='month'?'ce mois':'';
+  coursesEl.innerHTML=coursesExp.length
+    ? coursesExp.map(e=>expenseHtml(e,'courses')).join('')
+    : `<div class="card"><div class="empty-state">Aucune dépense courses ${filterLabelCourses}</div></div>`;
 
-  // Extras list
-  const extrasExp=monthExp.filter(e=>e.expType!=='courses').sort((a,b)=>b.createdAt-a.createdAt);
+  // Extras list (filtrée)
+  const allExtras=expenses.filter(e=>e.expType!=='courses');
+  const extrasExp=filterExpenses(allExtras).sort((a,b)=>b.createdAt-a.createdAt);
   const extrasEl=document.getElementById('extrasList');
-  if(!extrasExp.length){
-    extrasEl.innerHTML='<div class="card"><div class="empty-state">Aucune dépense extra ce mois</div></div>';
-  } else {
-    extrasEl.innerHTML=extrasExp.map(e=>expenseHtml(e,'extra')).join('');
-  }
+  const filterLabelExtras=currentFilter==='today'?'aujourd\'hui':currentFilter==='week'?'cette semaine':currentFilter==='month'?'ce mois':'';
+  extrasEl.innerHTML=extrasExp.length
+    ? extrasExp.map(e=>expenseHtml(e,'extra')).join('')
+    : `<div class="card"><div class="empty-state">Aucune dépense extra ${filterLabelExtras}</div></div>`;
 }
 
 function expenseHtml(e,type){
