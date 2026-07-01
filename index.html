@@ -186,31 +186,48 @@
 
 <!-- SUMMARY CARD -->
 <div class="summary-card">
+  <div style="padding:14px 20px 4px;font-size:11px;font-weight:800;color:var(--gray-400);text-transform:uppercase;letter-spacing:.5px">Résumé du mois</div>
   <div class="summary-rows">
     <div class="summary-row">
       <div class="summary-label"><div class="dot" style="background:var(--green)"></div>Salaires</div>
-      <div class="summary-amount pos" id="sumSalaires">0,00 €</div>
+      <div class="summary-amount" style="color:var(--green)" id="sumSalaires">0,00 €</div>
     </div>
     <div class="summary-row">
       <div class="summary-label"><div class="dot" style="background:var(--red)"></div>Charges fixes</div>
-      <div class="summary-amount neg" id="sumCharges">0,00 €</div>
-    </div>
-    <div class="summary-divider"></div>
-    <div class="summary-row">
-      <div class="summary-label"><div class="dot" style="background:var(--orange)"></div>Courses</div>
-      <div class="summary-amount neg" id="sumCourses">0,00 €</div>
+      <div class="summary-amount neg" id="sumCharges">− 0,00 €</div>
     </div>
     <div class="summary-row">
-      <div class="summary-label"><div class="dot" style="background:var(--blue)"></div>Extras</div>
-      <div class="summary-amount neg" id="sumExtras">0,00 €</div>
+      <div class="summary-label"><div class="dot" style="background:var(--blue)"></div>Dépenses extras</div>
+      <div class="summary-amount neg" id="sumExtras">− 0,00 €</div>
     </div>
   </div>
   <div class="summary-reste">
     <div>
       <div class="reste-label">Il te reste</div>
-      <div style="font-size:11px;color:var(--gray-400);margin-top:2px" id="resteFormula"></div>
+      <div style="font-size:11px;color:var(--gray-400);margin-top:2px">Salaires − Charges − Extras</div>
     </div>
     <div class="reste-amount" id="resteAmount">0,00 €</div>
+  </div>
+</div>
+
+<!-- COURSES BUDGET CARD -->
+<div class="summary-card" id="coursesBudgetSummary" style="margin-top:0">
+  <div style="padding:14px 20px 4px;font-size:11px;font-weight:800;color:var(--gray-400);text-transform:uppercase;letter-spacing:.5px">Budget Courses</div>
+  <div class="summary-rows" id="coursesBudgetSummaryRows">
+    <div class="summary-row">
+      <div class="summary-label"><div class="dot" style="background:var(--green)"></div>Budget défini</div>
+      <div class="summary-amount" style="color:var(--gray-700)" id="sumBudgetCourses">—</div>
+    </div>
+    <div class="summary-row">
+      <div class="summary-label"><div class="dot" style="background:var(--orange)"></div>Dépensé</div>
+      <div class="summary-amount neg" id="sumDepenseCourses">0,00 €</div>
+    </div>
+  </div>
+  <div class="summary-reste" id="coursesBudgetReste">
+    <div>
+      <div class="reste-label" id="coursesBudgetResteLabel">Il te reste</div>
+    </div>
+    <div class="reste-amount" id="coursesBudgetResteAmount">—</div>
   </div>
 </div>
 
@@ -469,18 +486,41 @@ function render(){
   const totalSal    = monthSal.reduce((s,x)=>s+x.amount,0);
   const totalCourses= monthExp.filter(e=>e.expType==='courses').reduce((s,e)=>s+e.amount,0);
   const totalExtras = monthExp.filter(e=>e.expType!=='courses').reduce((s,e)=>s+e.amount,0);
-  const reste       = totalSal - charges - totalCourses - totalExtras;
+  // Reste = Salaires − Charges fixes − Dépenses extras (les courses ont leur propre budget séparé)
+  const reste = totalSal - charges - totalExtras;
 
-  // Summary
-  document.getElementById('sumSalaires').textContent='+'+fmt(totalSal);
-  document.getElementById('sumCharges').textContent='-'+fmt(charges);
-  document.getElementById('sumCourses').textContent='-'+fmt(totalCourses);
-  document.getElementById('sumExtras').textContent='-'+fmt(totalExtras);
-  document.getElementById('resteFormula').textContent=
-    fmt(totalSal)+' − '+fmt(charges)+' − '+fmt(totalCourses)+' − '+fmt(totalExtras);
+  // Résumé mensuel
+  document.getElementById('sumSalaires').textContent=fmt(totalSal);
+  document.getElementById('sumCharges').textContent='− '+fmt(charges);
+  document.getElementById('sumExtras').textContent='− '+fmt(totalExtras);
   const resteEl=document.getElementById('resteAmount');
-  resteEl.textContent=fmt(Math.abs(reste));
+  resteEl.textContent=(reste<0?'− ':'')+fmt(Math.abs(reste));
   resteEl.className='reste-amount '+(reste>0?'positive':reste<0?'negative':'zero');
+
+  // Budget courses (carte séparée)
+  const coursesBudgetDef = coursesBudgetMap[currentMonth]||0;
+  const resteCourses = coursesBudgetDef - totalCourses;
+  document.getElementById('sumBudgetCourses').textContent = coursesBudgetDef ? fmt(coursesBudgetDef) : '— Non défini';
+  document.getElementById('sumDepenseCourses').textContent = '− '+fmt(totalCourses);
+  const rcEl = document.getElementById('coursesBudgetResteAmount');
+  const rcLabel = document.getElementById('coursesBudgetResteLabel');
+  if(!coursesBudgetDef){
+    rcLabel.textContent = 'Aucun budget défini';
+    rcEl.textContent = '';
+    rcEl.className = 'reste-amount zero';
+  } else if(resteCourses > 0){
+    rcLabel.textContent = 'Il te reste';
+    rcEl.textContent = fmt(resteCourses);
+    rcEl.className = 'reste-amount positive';
+  } else if(resteCourses === 0){
+    rcLabel.textContent = 'Budget atteint à 100%';
+    rcEl.textContent = fmt(0);
+    rcEl.className = 'reste-amount zero';
+  } else {
+    rcLabel.textContent = 'Dépassement de';
+    rcEl.textContent = fmt(Math.abs(resteCourses));
+    rcEl.className = 'reste-amount negative';
+  }
 
   // Section totals
   document.getElementById('salairesTotalLabel').textContent=totalSal?fmt(totalSal):'';
@@ -513,25 +553,24 @@ function render(){
   document.getElementById('chargesCurrent').textContent=charges
     ? `Charges actuelles : ${fmt(charges)}` : 'Aucune charge enregistrée ce mois';
 
-  // Courses budget bar
-  const coursesBudget = coursesBudgetMap[currentMonth] || 0;
-  const budgetCard    = document.getElementById('coursesBudgetCard');
-  const budgetDefine  = document.getElementById('coursesBudgetDefine');
-  if(coursesBudget > 0){
+  // Courses budget bar (dans la section courses)
+  const budgetCard   = document.getElementById('coursesBudgetCard');
+  const budgetDefine = document.getElementById('coursesBudgetDefine');
+  if(coursesBudgetDef > 0){
     budgetCard.style.display   = 'block';
     budgetDefine.style.display = 'none';
-    const pct     = Math.min((totalCourses / coursesBudget) * 100, 100);
-    const over    = totalCourses > coursesBudget;
-    const atLimit = totalCourses === coursesBudget;
+    const pct     = Math.min((totalCourses / coursesBudgetDef) * 100, 100);
+    const over    = totalCourses > coursesBudgetDef;
+    const atLimit = totalCourses === coursesBudgetDef;
     const cls     = over ? 'over' : atLimit ? 'warn' : 'ok';
     const statusTxt = over
-      ? `🚨 Dépassement de ${fmt(totalCourses - coursesBudget)}`
+      ? `🚨 Dépassement de ${fmt(totalCourses - coursesBudgetDef)}`
       : atLimit ? `🟡 Budget atteint à 100%`
-      : `✅ Il te reste ${fmt(coursesBudget - totalCourses)}`;
+      : `✅ Il te reste ${fmt(coursesBudgetDef - totalCourses)} sur ton budget`;
     document.getElementById('coursesBudgetBar').innerHTML = `
       <div class="budget-bar-info">
         <span style="color:var(--gray-500)">Budget courses</span>
-        <span style="color:var(--gray-700)">${fmt(totalCourses)} / ${fmt(coursesBudget)}</span>
+        <span style="color:var(--gray-700)">${fmt(totalCourses)} / ${fmt(coursesBudgetDef)}</span>
       </div>
       <div class="budget-bar-bg"><div class="budget-bar-fill ${cls}" style="width:${pct}%"></div></div>
       <div class="budget-status ${cls}">${statusTxt}</div>`;
