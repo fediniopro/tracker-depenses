@@ -186,25 +186,31 @@
 
 <!-- SUMMARY CARD -->
 <div class="summary-card">
-  <div style="padding:14px 20px 4px;font-size:11px;font-weight:800;color:var(--gray-400);text-transform:uppercase;letter-spacing:.5px">Résumé du mois</div>
+  <div style="padding:14px 20px 4px;font-size:11px;font-weight:800;color:var(--gray-400);text-transform:uppercase;letter-spacing:.5px">Budget principal</div>
   <div class="summary-rows">
     <div class="summary-row">
-      <div class="summary-label"><div class="dot" style="background:var(--green)"></div>Salaires</div>
+      <div class="summary-label"><div class="dot" style="background:var(--green)"></div>Salaire</div>
       <div class="summary-amount" style="color:var(--green)" id="sumSalaires">0,00 €</div>
     </div>
+    <div class="summary-divider"></div>
     <div class="summary-row">
       <div class="summary-label"><div class="dot" style="background:var(--red)"></div>Charges fixes</div>
-      <div class="summary-amount neg" id="sumCharges">− 0,00 €</div>
+      <div class="summary-amount neg" id="sumCharges">0,00 €</div>
     </div>
     <div class="summary-row">
       <div class="summary-label"><div class="dot" style="background:var(--blue)"></div>Dépenses extras</div>
-      <div class="summary-amount neg" id="sumExtras">− 0,00 €</div>
+      <div class="summary-amount neg" id="sumExtras">0,00 €</div>
+    </div>
+    <div class="summary-divider"></div>
+    <div class="summary-row">
+      <div class="summary-label" style="font-weight:700;color:var(--gray-700)"><div class="dot" style="background:var(--gray-400)"></div>Total des dépenses</div>
+      <div class="summary-amount" style="color:var(--gray-700);font-weight:800" id="sumTotalDepenses">0,00 €</div>
     </div>
   </div>
   <div class="summary-reste">
     <div>
-      <div class="reste-label">Il te reste</div>
-      <div style="font-size:11px;color:var(--gray-400);margin-top:2px">Salaires − Charges − Extras</div>
+      <div class="reste-label">Il reste</div>
+      <div style="font-size:11px;color:var(--gray-400);margin-top:2px">Salaire − (Charges + Extras)</div>
     </div>
     <div class="reste-amount" id="resteAmount">0,00 €</div>
   </div>
@@ -490,12 +496,14 @@ function render(){
   const reste = totalSal - charges - totalExtras;
 
   // Résumé mensuel
-  document.getElementById('sumSalaires').textContent=fmt(totalSal);
-  document.getElementById('sumCharges').textContent='− '+fmt(charges);
-  document.getElementById('sumExtras').textContent='− '+fmt(totalExtras);
-  const resteEl=document.getElementById('resteAmount');
-  resteEl.textContent=(reste<0?'− ':'')+fmt(Math.abs(reste));
-  resteEl.className='reste-amount '+(reste>0?'positive':reste<0?'negative':'zero');
+  const totalDepenses = charges + totalExtras;
+  document.getElementById('sumSalaires').textContent = fmt(totalSal);
+  document.getElementById('sumCharges').textContent  = fmt(charges);
+  document.getElementById('sumExtras').textContent   = fmt(totalExtras);
+  document.getElementById('sumTotalDepenses').textContent = fmt(totalDepenses);
+  const resteEl = document.getElementById('resteAmount');
+  resteEl.textContent  = (reste < 0 ? '− ' : '') + fmt(Math.abs(reste));
+  resteEl.className    = 'reste-amount ' + (reste > 0 ? 'positive' : reste < 0 ? 'negative' : 'zero');
 
   // Budget courses (carte séparée)
   const coursesBudgetDef = coursesBudgetMap[currentMonth]||0;
@@ -745,6 +753,8 @@ function saveExpense(){
   localStorage.setItem('categoryEmojis',JSON.stringify(categoryEmojis));
   localStorage.setItem('categories',JSON.stringify(categories));
   closeModal('expenseModal');
+  // Navigue vers le mois de la dépense pour qu'elle soit toujours visible
+  currentMonth = monthOf(date);
   // Check courses budget after saving
   if(currentExpType==='courses'){
     const budget=coursesBudgetMap[currentMonth]||0;
