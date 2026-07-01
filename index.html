@@ -177,9 +177,9 @@
     </div>
   </div>
   <div class="filter-tabs">
-    <button class="filter-tab active" id="tab-today" onclick="setFilter('today')">Aujourd'hui</button>
+    <button class="filter-tab" id="tab-today" onclick="setFilter('today')">Aujourd'hui</button>
     <button class="filter-tab" id="tab-week"  onclick="setFilter('week')">Semaine</button>
-    <button class="filter-tab" id="tab-month" onclick="setFilter('month')">Mois</button>
+    <button class="filter-tab active" id="tab-month" onclick="setFilter('month')">Mois</button>
     <button class="filter-tab" id="tab-all"   onclick="setFilter('all')">Tout</button>
   </div>
 </div>
@@ -389,7 +389,7 @@ let editingExpId   = null;
 let editingSalId   = null;
 let currentExpType = 'extra';
 let selectedEmoji  = '💸';
-let currentFilter  = 'today';
+let currentFilter  = 'month';
 
 const ALL_EMOJIS = ['💸','💰','💳','🛒','🛍️','🏠','🚗','⛽','🚌','🚇','✈️','🏨','🍔','🍕','🍣',
   '🥗','☕','🍷','🥦','🧃','🍞','🥩','🧴','💊','🏥','🩺','👗','👟','👔','💄','💇','💅','🏋️',
@@ -399,7 +399,7 @@ const ALL_EMOJIS = ['💸','💰','💳','🛒','🛍️','🏠','🚗','⛽','�
 
 // ─── UTILS ───────────────────────────────────────────────────────────────────
 function fmt(n){ return (n||0).toFixed(2).replace('.',',')+' €'; }
-function today(){ return new Date().toISOString().split('T')[0]; }
+function today(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function monthOf(date){ return date.slice(0,7); }
 function formatShortDate(d){ return new Date(d+'T00:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}); }
 function formatTime(ts){ return new Date(ts).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}); }
@@ -646,7 +646,7 @@ function openExpenseModal(type,id){
     document.getElementById('expAmountInput').value='';
     document.getElementById('expCategoryInput').value='';
     document.getElementById('expDescInput').value='';
-    document.getElementById('expDateInput').value=currentMonth+'-'+new Date().toISOString().slice(8,10);
+    document.getElementById('expDateInput').value=today();
     document.getElementById('expTimeInput').value=new Date().toTimeString().slice(0,5);
     selectedEmoji='💸';
   }
