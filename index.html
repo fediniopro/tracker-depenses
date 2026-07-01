@@ -30,10 +30,9 @@
     .header-title { font-size:20px; font-weight:800; color:white; }
     .month-nav { display:flex; align-items:center; gap:6px; }
     .month-btn { background:rgba(255,255,255,.2); border:none; color:white; width:32px; height:32px; border-radius:99px; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
-    .month-picker-wrap { position:relative; }
-    .month-picker-btn { background:rgba(255,255,255,.2); border:none; color:white; font-size:14px; font-weight:700; padding:7px 12px; border-radius:99px; cursor:pointer; display:flex; align-items:center; gap:6px; font-family:inherit; white-space:nowrap; }
-    .month-picker-btn svg { opacity:.8; }
-    .month-input { position:absolute; inset:0; opacity:0; width:100%; height:100%; cursor:pointer; }
+    .month-picker-label { background:rgba(255,255,255,.2); color:white; font-size:14px; font-weight:700; padding:7px 12px; border-radius:99px; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap; user-select:none; -webkit-user-select:none; }
+    .month-picker-label svg { opacity:.8; flex-shrink:0; }
+    #monthInput { position:fixed; opacity:0; top:0; left:0; width:1px; height:1px; pointer-events:none; }
     /* FILTER TABS */
     .filter-tabs { display:flex; gap:6px; padding-bottom:14px; }
     .filter-tab { flex:1; padding:8px 4px; border:none; border-radius:99px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; background:rgba(255,255,255,.15); color:rgba(255,255,255,.7); transition:all .2s; }
@@ -175,13 +174,11 @@
     <div class="header-title">💰 Mon Budget</div>
     <div class="month-nav">
       <button class="month-btn" onclick="changeMonth(-1)">‹</button>
-      <div class="month-picker-wrap">
-        <button class="month-picker-btn" id="monthLabel">
-          —
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        </button>
-        <input type="month" class="month-input" id="monthInput" onchange="pickMonth(this.value)">
-      </div>
+      <label for="monthInput" class="month-picker-label" id="monthLabel">
+        —
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </label>
+      <input type="month" id="monthInput" onchange="pickMonth(this.value)">
       <button class="month-btn" onclick="changeMonth(1)">›</button>
     </div>
   </div>
